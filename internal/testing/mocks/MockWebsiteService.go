@@ -328,6 +328,92 @@ func (_c *MockWebsiteService_CreateWebsite_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// CreateHNSDomain provides a mock function for the type MockWebsiteService
+func (_mock *MockWebsiteService) CreateHNSDomain(ctx context.Context, userID uint, websiteID uint, domain string, mode string) (*db.HNSDomain, error) {
+	ret := _mock.Called(ctx, userID, websiteID, domain, mode)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateHNSDomain")
+	}
+
+	var r0 *db.HNSDomain
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint, uint, string, string) (*db.HNSDomain, error)); ok {
+		return returnFunc(ctx, userID, websiteID, domain, mode)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint, uint, string, string) *db.HNSDomain); ok {
+		r0 = returnFunc(ctx, userID, websiteID, domain, mode)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*db.HNSDomain)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uint, uint, string, string) error); ok {
+		r1 = returnFunc(ctx, userID, websiteID, domain, mode)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockWebsiteService_CreateHNSDomain_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateHNSDomain'
+type MockWebsiteService_CreateHNSDomain_Call struct {
+	*mock.Call
+}
+
+// CreateHNSDomain is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uint
+//   - websiteID uint
+//   - domain string
+//   - mode string
+func (_e *MockWebsiteService_Expecter) CreateHNSDomain(ctx interface{}, userID interface{}, websiteID interface{}, domain interface{}, mode interface{}) *MockWebsiteService_CreateHNSDomain_Call {
+	return &MockWebsiteService_CreateHNSDomain_Call{Call: _e.mock.On("CreateHNSDomain", ctx, userID, websiteID, domain, mode)}
+}
+
+func (_c *MockWebsiteService_CreateHNSDomain_Call) Run(run func(ctx context.Context, userID uint, websiteID uint, domain string, mode string)) *MockWebsiteService_CreateHNSDomain_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uint
+		if args[1] != nil {
+			arg1 = args[1].(uint)
+		}
+		var arg2 uint
+		if args[2] != nil {
+			arg2 = args[2].(uint)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWebsiteService_CreateHNSDomain_Call) Return(hNSDomain *db.HNSDomain, err error) *MockWebsiteService_CreateHNSDomain_Call {
+	_c.Call.Return(hNSDomain, err)
+	return _c
+}
+
+func (_c *MockWebsiteService_CreateHNSDomain_Call) RunAndReturn(run func(ctx context.Context, userID uint, websiteID uint, domain string, mode string) (*db.HNSDomain, error)) *MockWebsiteService_CreateHNSDomain_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DB provides a mock function for the type MockWebsiteService
 func (_mock *MockWebsiteService) DB() *gorm.DB {
 	ret := _mock.Called()
@@ -766,6 +852,80 @@ func (_c *MockWebsiteService_ListWebsites_Call) Return(websites []*db.Website, n
 }
 
 func (_c *MockWebsiteService_ListWebsites_Call) RunAndReturn(run func(ctx context.Context, userID uint, filter1 []queryutil.CrudFilter, sort []filter.Sort, pagination queryutil.Pagination) ([]*db.Website, int64, error)) *MockWebsiteService_ListWebsites_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListHNSDomains provides a mock function for the type MockWebsiteService
+func (_mock *MockWebsiteService) ListHNSDomains(ctx context.Context, userID uint, websiteID uint) ([]*db.HNSDomain, error) {
+	ret := _mock.Called(ctx, userID, websiteID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListHNSDomains")
+	}
+
+	var r0 []*db.HNSDomain
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint, uint) ([]*db.HNSDomain, error)); ok {
+		return returnFunc(ctx, userID, websiteID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint, uint) []*db.HNSDomain); ok {
+		r0 = returnFunc(ctx, userID, websiteID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*db.HNSDomain)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uint, uint) error); ok {
+		r1 = returnFunc(ctx, userID, websiteID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockWebsiteService_ListHNSDomains_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListHNSDomains'
+type MockWebsiteService_ListHNSDomains_Call struct {
+	*mock.Call
+}
+
+// ListHNSDomains is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uint
+//   - websiteID uint
+func (_e *MockWebsiteService_Expecter) ListHNSDomains(ctx interface{}, userID interface{}, websiteID interface{}) *MockWebsiteService_ListHNSDomains_Call {
+	return &MockWebsiteService_ListHNSDomains_Call{Call: _e.mock.On("ListHNSDomains", ctx, userID, websiteID)}
+}
+
+func (_c *MockWebsiteService_ListHNSDomains_Call) Run(run func(ctx context.Context, userID uint, websiteID uint)) *MockWebsiteService_ListHNSDomains_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uint
+		if args[1] != nil {
+			arg1 = args[1].(uint)
+		}
+		var arg2 uint
+		if args[2] != nil {
+			arg2 = args[2].(uint)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWebsiteService_ListHNSDomains_Call) Return(hNSDomains []*db.HNSDomain, err error) *MockWebsiteService_ListHNSDomains_Call {
+	_c.Call.Return(hNSDomains, err)
+	return _c
+}
+
+func (_c *MockWebsiteService_ListHNSDomains_Call) RunAndReturn(run func(ctx context.Context, userID uint, websiteID uint) ([]*db.HNSDomain, error)) *MockWebsiteService_ListHNSDomains_Call {
 	_c.Call.Return(run)
 	return _c
 }

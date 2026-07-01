@@ -8,6 +8,7 @@ import (
 	"context"
 
 	mock "github.com/stretchr/testify/mock"
+	core0 "go.lumeweb.com/portal-plugin-ipfs/core"
 	"go.lumeweb.com/portal-plugin-ipfs/internal/api/dto"
 	"go.lumeweb.com/portal-plugin-ipfs/internal/db"
 	"go.lumeweb.com/portal/config"
@@ -394,6 +395,98 @@ func (_c *MockDNSService_CreateWebsiteDNSRecords_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// CreateHNSDNSRecords provides a mock function for the type MockDNSService
+func (_mock *MockDNSService) CreateHNSDNSRecords(ctx context.Context, zoneID uint, hnsDomain string, targetHash string, targetType db.WebsiteTargetType, tlsaRecord string) ([]*dto.DNSRecord, error) {
+	ret := _mock.Called(ctx, zoneID, hnsDomain, targetHash, targetType, tlsaRecord)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateHNSDNSRecords")
+	}
+
+	var r0 []*dto.DNSRecord
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint, string, string, db.WebsiteTargetType, string) ([]*dto.DNSRecord, error)); ok {
+		return returnFunc(ctx, zoneID, hnsDomain, targetHash, targetType, tlsaRecord)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint, string, string, db.WebsiteTargetType, string) []*dto.DNSRecord); ok {
+		r0 = returnFunc(ctx, zoneID, hnsDomain, targetHash, targetType, tlsaRecord)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*dto.DNSRecord)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uint, string, string, db.WebsiteTargetType, string) error); ok {
+		r1 = returnFunc(ctx, zoneID, hnsDomain, targetHash, targetType, tlsaRecord)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockDNSService_CreateHNSDNSRecords_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateHNSDNSRecords'
+type MockDNSService_CreateHNSDNSRecords_Call struct {
+	*mock.Call
+}
+
+// CreateHNSDNSRecords is a helper method to define mock.On call
+//   - ctx context.Context
+//   - zoneID uint
+//   - hnsDomain string
+//   - targetHash string
+//   - targetType db.WebsiteTargetType
+//   - tlsaRecord string
+func (_e *MockDNSService_Expecter) CreateHNSDNSRecords(ctx interface{}, zoneID interface{}, hnsDomain interface{}, targetHash interface{}, targetType interface{}, tlsaRecord interface{}) *MockDNSService_CreateHNSDNSRecords_Call {
+	return &MockDNSService_CreateHNSDNSRecords_Call{Call: _e.mock.On("CreateHNSDNSRecords", ctx, zoneID, hnsDomain, targetHash, targetType, tlsaRecord)}
+}
+
+func (_c *MockDNSService_CreateHNSDNSRecords_Call) Run(run func(ctx context.Context, zoneID uint, hnsDomain string, targetHash string, targetType db.WebsiteTargetType, tlsaRecord string)) *MockDNSService_CreateHNSDNSRecords_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uint
+		if args[1] != nil {
+			arg1 = args[1].(uint)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 db.WebsiteTargetType
+		if args[4] != nil {
+			arg4 = args[4].(db.WebsiteTargetType)
+		}
+		var arg5 string
+		if args[5] != nil {
+			arg5 = args[5].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockDNSService_CreateHNSDNSRecords_Call) Return(dNSRecords []*dto.DNSRecord, err error) *MockDNSService_CreateHNSDNSRecords_Call {
+	_c.Call.Return(dNSRecords, err)
+	return _c
+}
+
+func (_c *MockDNSService_CreateHNSDNSRecords_Call) RunAndReturn(run func(ctx context.Context, zoneID uint, hnsDomain string, targetHash string, targetType db.WebsiteTargetType, tlsaRecord string) ([]*dto.DNSRecord, error)) *MockDNSService_CreateHNSDNSRecords_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateZone provides a mock function for the type MockDNSService
 func (_mock *MockDNSService) CreateZone(ctx context.Context, domain string, userID uint) (*db.DNSZone, error) {
 	ret := _mock.Called(ctx, domain, userID)
@@ -699,6 +792,74 @@ func (_c *MockDNSService_DeleteZone_Call) Return(err error) *MockDNSService_Dele
 }
 
 func (_c *MockDNSService_DeleteZone_Call) RunAndReturn(run func(ctx context.Context, zoneID uint) error) *MockDNSService_DeleteZone_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnsureZoneDNSSEC provides a mock function for the type MockDNSService
+func (_mock *MockDNSService) EnsureZoneDNSSEC(ctx context.Context, zoneID uint) (*core0.DNSSECRecord, error) {
+	ret := _mock.Called(ctx, zoneID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureZoneDNSSEC")
+	}
+
+	var r0 *core0.DNSSECRecord
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint) (*core0.DNSSECRecord, error)); ok {
+		return returnFunc(ctx, zoneID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uint) *core0.DNSSECRecord); ok {
+		r0 = returnFunc(ctx, zoneID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*core0.DNSSECRecord)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uint) error); ok {
+		r1 = returnFunc(ctx, zoneID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockDNSService_EnsureZoneDNSSEC_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnsureZoneDNSSEC'
+type MockDNSService_EnsureZoneDNSSEC_Call struct {
+	*mock.Call
+}
+
+// EnsureZoneDNSSEC is a helper method to define mock.On call
+//   - ctx context.Context
+//   - zoneID uint
+func (_e *MockDNSService_Expecter) EnsureZoneDNSSEC(ctx interface{}, zoneID interface{}) *MockDNSService_EnsureZoneDNSSEC_Call {
+	return &MockDNSService_EnsureZoneDNSSEC_Call{Call: _e.mock.On("EnsureZoneDNSSEC", ctx, zoneID)}
+}
+
+func (_c *MockDNSService_EnsureZoneDNSSEC_Call) Run(run func(ctx context.Context, zoneID uint)) *MockDNSService_EnsureZoneDNSSEC_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uint
+		if args[1] != nil {
+			arg1 = args[1].(uint)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockDNSService_EnsureZoneDNSSEC_Call) Return(dNSSECRecord *core0.DNSSECRecord, err error) *MockDNSService_EnsureZoneDNSSEC_Call {
+	_c.Call.Return(dNSSECRecord, err)
+	return _c
+}
+
+func (_c *MockDNSService_EnsureZoneDNSSEC_Call) RunAndReturn(run func(ctx context.Context, zoneID uint) (*core0.DNSSECRecord, error)) *MockDNSService_EnsureZoneDNSSEC_Call {
 	_c.Call.Return(run)
 	return _c
 }

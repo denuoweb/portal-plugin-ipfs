@@ -12,16 +12,16 @@ import (
 	"strings"
 	"testing"
 
-	"go.lumeweb.com/portal/core"
 	"go.lumeweb.com/portal-plugin-ipfs/internal/dns/powerdns"
+	"go.lumeweb.com/portal/core"
 	"go.uber.org/zap"
 )
 
 // mockHTTPClient is a mock HTTP client for testing
 type mockHTTPClient struct {
-	response  *http.Response
-	err       error
-	requests  []*http.Request
+	response *http.Response
+	err      error
+	requests []*http.Request
 }
 
 func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
@@ -67,7 +67,7 @@ func TestCreateZone(t *testing.T) {
 			nameservers: []string{"ns1.example.com.", "ns2.example.com."},
 			mockResponse: &http.Response{
 				StatusCode: http.StatusCreated,
-				Body:       io.NopCloser(bytes.NewBufferString(`{
+				Body: io.NopCloser(bytes.NewBufferString(`{
 					"id": "example.com.",
 					"name": "example.com.",
 					"kind": "Native"
@@ -98,7 +98,7 @@ func TestCreateZone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-	coreLogger := &core.Logger{Logger: logger}
+			coreLogger := &core.Logger{Logger: logger}
 			mockClient := &mockHTTPClient{
 				response: tt.mockResponse,
 				err:      tt.mockError,
@@ -155,9 +155,9 @@ func TestGetZone(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:      "zone not found",
-			zoneID:    "nonexistent.com.",
-			mockError: errors.New("network error"),
+			name:        "zone not found",
+			zoneID:      "nonexistent.com.",
+			mockError:   errors.New("network error"),
 			expectError: true,
 		},
 	}
@@ -165,7 +165,7 @@ func TestGetZone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-	coreLogger := &core.Logger{Logger: logger}
+			coreLogger := &core.Logger{Logger: logger}
 			mockClient := &mockHTTPClient{
 				response: tt.mockResponse,
 				err:      tt.mockError,
@@ -196,6 +196,29 @@ func TestGetZone(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestParseDSRecord(t *testing.T) {
+	record, err := parseDSRecord("example. 300 IN DS 12345 13 2 abcd")
+	if err != nil {
+		t.Fatalf("parseDSRecord returned error: %v", err)
+	}
+	if record.KeyTag != 12345 {
+		t.Fatalf("expected key tag 12345, got %d", record.KeyTag)
+	}
+	if record.Algorithm != 13 {
+		t.Fatalf("expected algorithm 13, got %d", record.Algorithm)
+	}
+	if record.DigestType != 2 {
+		t.Fatalf("expected digest type 2, got %d", record.DigestType)
+	}
+	if record.Digest != "ABCD" {
+		t.Fatalf("expected digest ABCD, got %s", record.Digest)
+	}
+
+	if _, err := parseDSRecord("invalid"); err == nil {
+		t.Fatal("expected invalid DS record to fail")
 	}
 }
 
@@ -231,18 +254,18 @@ func TestUpdateZoneRRSets(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:         "RRSet update with API error",
-			zoneID:       "example.com.",
-			rrsets:       []powerdns.RRSet{},
-			mockError:    errors.New("network error"),
-			expectError:  true,
+			name:        "RRSet update with API error",
+			zoneID:      "example.com.",
+			rrsets:      []powerdns.RRSet{},
+			mockError:   errors.New("network error"),
+			expectError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-	coreLogger := &core.Logger{Logger: logger}
+			coreLogger := &core.Logger{Logger: logger}
 			mockClient := &mockHTTPClient{
 				response: tt.mockResponse,
 				err:      tt.mockError,
@@ -298,7 +321,7 @@ func TestDeleteZone(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := zap.NewNop()
-	coreLogger := &core.Logger{Logger: logger}
+			coreLogger := &core.Logger{Logger: logger}
 			mockClient := &mockHTTPClient{
 				response: tt.mockResponse,
 				err:      tt.mockError,
@@ -616,11 +639,11 @@ func TestCreateZoneCanonicalDomain(t *testing.T) {
 }
 func TestCreateZoneCanonicalNameservers(t *testing.T) {
 	tests := []struct {
-		name           string
-		domain         string
-		nameservers    []string
-		expectedNS     []string
-		expectError    bool
+		name        string
+		domain      string
+		nameservers []string
+		expectedNS  []string
+		expectError bool
 	}{
 		{
 			name:        "normalize nameservers without trailing dots",
