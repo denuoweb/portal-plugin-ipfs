@@ -8,8 +8,8 @@ import (
 
 	"github.com/Oudwins/zog"
 	"go.lumeweb.com/httputil"
-	"go.lumeweb.com/portal/config"
 	"go.lumeweb.com/portal-plugin-ipfs/internal/db"
+	"go.lumeweb.com/portal/config"
 )
 
 // Compile-time interface implementation assertions
@@ -19,7 +19,7 @@ var _ httputil.DTOResponse[any] = (*ValidationResponse)(nil)
 
 // ZoneRequest represents a request to create or update a DNS zone
 type ZoneRequest struct {
-	Domain      string `json:"domain"`
+	Domain      string   `json:"domain"`
 	Nameservers []string `json:"nameservers,omitempty"`
 }
 
@@ -42,13 +42,13 @@ var _ httputil.DTOValidator = (*ZoneRequest)(nil)
 
 // ZoneResponse represents a DNS zone response
 type ZoneResponse struct {
-	ID             uint       `json:"id"`
-	UserID         uint       `json:"user_id"`
-	Domain         string     `json:"domain"`
-	Status         string     `json:"status"`
-	PowerDNSZoneID string     `json:"powerdns_zone_id,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID             uint      `json:"id"`
+	UserID         uint      `json:"user_id"`
+	Domain         string    `json:"domain"`
+	Status         string    `json:"status"`
+	PowerDNSZoneID string    `json:"powerdns_zone_id,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 func (r *ZoneResponse) FromModel(model *db.DNSZone) error {
@@ -68,13 +68,13 @@ var _ httputil.DTOResponse[*db.DNSZone] = (*ZoneResponse)(nil)
 
 // ZoneListResponse represents a DNS zone in a list response
 type ZoneListResponse struct {
-	ID             uint       `json:"id"`
-	UserID         uint       `json:"user_id"`
-	Domain         string     `json:"domain"`
-	Status         string     `json:"status"`
-	PowerDNSZoneID string     `json:"powerdns_zone_id,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	ID             uint      `json:"id"`
+	UserID         uint      `json:"user_id"`
+	Domain         string    `json:"domain"`
+	Status         string    `json:"status"`
+	PowerDNSZoneID string    `json:"powerdns_zone_id,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 func (r *ZoneListResponse) FromModel(model *db.DNSZone) error {
@@ -127,33 +127,33 @@ func (r ZoneListRequest) ToModel() (ZoneListRequest, error) {
 // This is a data structure for API responses, records are managed entirely by PowerDNS
 // Records are identified by (name, type) within a zone, not by persistent IDs
 type DNSRecord struct {
-	ZoneID   uint    `json:"zone_id"`
-	Name     string  `json:"name"`
-	Type     string  `json:"type"`
-	Content  string  `json:"content"`
-	TTL      uint    `json:"ttl"`
-	Disabled bool    `json:"disabled"`
+	ZoneID   uint   `json:"zone_id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      uint   `json:"ttl"`
+	Disabled bool   `json:"disabled"`
 }
 
 // Record DTOs
 
 // RecordRequest represents a request to create or update a DNS record
 type RecordRequest struct {
-	Name    string `json:"name"`
-	Type    string `json:"type"`
-	Content string `json:"content"`
-	TTL     uint   `json:"ttl,omitempty"`
-	Disabled bool  `json:"disabled,omitempty"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      uint   `json:"ttl,omitempty"`
+	Disabled bool   `json:"disabled,omitempty"`
 }
 
 func (r RecordRequest) Schema() *zog.StructSchema {
 	return zog.Struct(zog.Shape{
-		"Name":    zog.String().Required().Min(1).Max(255),
-		"Type":    zog.String().Required().OneOf([]string{
-			"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS",
+		"Name": zog.String().Required().Min(1).Max(255),
+		"Type": zog.String().Required().OneOf([]string{
+			"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS", "TLSA",
 		}),
-		"Content": zog.String().Required().Min(1).Max(1024),
-		"TTL":     zog.UintLike[uint]().Optional(),
+		"Content":  zog.String().Required().Min(1).Max(1024),
+		"TTL":      zog.UintLike[uint]().Optional(),
 		"Disabled": zog.Bool().Optional(),
 	})
 }
@@ -166,12 +166,12 @@ var _ httputil.DTOValidator = (*RecordRequest)(nil)
 
 // RecordResponse represents a DNS record response
 type RecordResponse struct {
-	ZoneID   uint    `json:"zone_id"`
-	Name     string  `json:"name"`
-	Type     string  `json:"type"`
-	Content  string  `json:"content"`
-	TTL      uint    `json:"ttl"`
-	Disabled bool    `json:"disabled"`
+	ZoneID   uint   `json:"zone_id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      uint   `json:"ttl"`
+	Disabled bool   `json:"disabled"`
 }
 
 func (r *RecordResponse) FromModel(model *DNSRecord) error {
@@ -229,12 +229,12 @@ type BulkRecordRequest struct {
 func (r BulkRecordRequest) Schema() *zog.StructSchema {
 	return zog.Struct(zog.Shape{
 		"Records": zog.Slice(zog.Struct(zog.Shape{
-			"Name":    zog.String().Required().Min(1).Max(255),
-			"Type":    zog.String().Required().OneOf([]string{
-				"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS",
+			"Name": zog.String().Required().Min(1).Max(255),
+			"Type": zog.String().Required().OneOf([]string{
+				"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS", "TLSA",
 			}),
-			"Content": zog.String().Required().Min(1).Max(1024),
-			"TTL":     zog.UintLike[uint]().Optional(),
+			"Content":  zog.String().Required().Min(1).Max(1024),
+			"TTL":      zog.UintLike[uint]().Optional(),
 			"Disabled": zog.Bool().Optional(),
 		})).Required(),
 	})
@@ -255,7 +255,7 @@ func (r BulkDeleteRequest) Schema() *zog.StructSchema {
 		"Records": zog.Slice(zog.Struct(zog.Shape{
 			"Name": zog.String().Required().Min(1).Max(255),
 			"Type": zog.String().Required().OneOf([]string{
-				"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS",
+				"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS", "TLSA",
 			}),
 		})).Required().Min(1),
 		"DryRun": zog.Bool().Optional(),
@@ -325,8 +325,8 @@ type BulkDeleteResponse struct {
 func (r BulkDeleteResponse) Schema() *zog.StructSchema {
 	return zog.Struct(zog.Shape{
 		"Results": zog.Slice(zog.Struct(zog.Shape{
-			"Name":   zog.String().Required().Min(1).Max(255),
-			"Type":   zog.String().Required().OneOf([]string{
+			"Name": zog.String().Required().Min(1).Max(255),
+			"Type": zog.String().Required().OneOf([]string{
 				"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS",
 			}),
 			"Status": zog.String().Required().OneOf([]string{"success", "error"}),
@@ -354,17 +354,17 @@ type CreatedRecord struct {
 
 // ImportZoneResponse represents the response from a DNS zone import operation
 type ImportZoneResponse struct {
-	CreatedRecords []CreatedRecord  `json:"created_records"`
-	SkippedCount   int              `json:"skipped_count"`
-	FailedCount    int              `json:"failed_count"`
+	CreatedRecords []CreatedRecord   `json:"created_records"`
+	SkippedCount   int               `json:"skipped_count"`
+	FailedCount    int               `json:"failed_count"`
 	Errors         []ImportZoneError `json:"errors"`
 }
 
 func (r ImportZoneResponse) Schema() *zog.StructSchema {
 	return zog.Struct(zog.Shape{
 		"CreatedRecords": zog.Slice(zog.Struct(zog.Shape{
-			"Name":    zog.String().Required().Min(1).Max(255),
-			"Type":    zog.String().Required().OneOf([]string{
+			"Name": zog.String().Required().Min(1).Max(255),
+			"Type": zog.String().Required().OneOf([]string{
 				"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS",
 			}),
 			"Content": zog.String().Required().Min(1).Max(1024),
@@ -373,8 +373,8 @@ func (r ImportZoneResponse) Schema() *zog.StructSchema {
 		"SkippedCount": zog.IntLike[int]().Optional(),
 		"FailedCount":  zog.IntLike[int]().Optional(),
 		"Errors": zog.Slice(zog.Struct(zog.Shape{
-			"Name":  zog.String().Required().Min(1).Max(255),
-			"Type":  zog.String().Required().OneOf([]string{
+			"Name": zog.String().Required().Min(1).Max(255),
+			"Type": zog.String().Required().OneOf([]string{
 				"A", "AAAA", "CNAME", "MX", "TXT", "NS", "SRV", "ALIAS",
 			}),
 			"Error": zog.String().Required().Min(1).Max(1024),
@@ -386,10 +386,10 @@ var _ httputil.DTOValidator = (*ImportZoneResponse)(nil)
 
 // ZoneStatusResponse represents a DNS zone status response
 type ZoneStatusResponse struct {
-	Status                 string     `json:"status"`
-	NameserversVerified    bool       `json:"nameservers_verified"`
+	Status                string     `json:"status"`
+	NameserversVerified   bool       `json:"nameservers_verified"`
 	LastNameserverCheckAt *time.Time `json:"last_nameserver_check_at,omitempty"`
-	NameserversVerifiedAt  *time.Time `json:"nameservers_verified_at,omitempty"`
+	NameserversVerifiedAt *time.Time `json:"nameservers_verified_at,omitempty"`
 }
 
 func (r *ZoneStatusResponse) FromModel(model *db.DNSZone) error {
@@ -402,10 +402,10 @@ func (r *ZoneStatusResponse) FromModel(model *db.DNSZone) error {
 
 // ValidationResponse represents a DNS validation response
 type ValidationResponse struct {
-	Valid      bool     `json:"valid"`
-	Message    string   `json:"message"`
-	Nameservers []string `json:"nameservers,omitempty"`
-	CheckedAt  time.Time `json:"checked_at"`
+	Valid       bool      `json:"valid"`
+	Message     string    `json:"message"`
+	Nameservers []string  `json:"nameservers,omitempty"`
+	CheckedAt   time.Time `json:"checked_at"`
 }
 
 func (r *ValidationResponse) FromModel(model any) error {
@@ -414,12 +414,12 @@ func (r *ValidationResponse) FromModel(model any) error {
 
 // RecordListResponse represents a DNS record in a list response
 type RecordListResponse struct {
-	ZoneID   uint    `json:"zone_id"`
-	Name     string  `json:"name"`
-	Type     string  `json:"type"`
-	Content  string  `json:"content"`
-	TTL      uint    `json:"ttl"`
-	Disabled bool    `json:"disabled"`
+	ZoneID   uint   `json:"zone_id"`
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Content  string `json:"content"`
+	TTL      uint   `json:"ttl"`
+	Disabled bool   `json:"disabled"`
 }
 
 func (r *RecordListResponse) FromModel(model any) error {

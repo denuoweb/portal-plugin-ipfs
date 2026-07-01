@@ -11,6 +11,13 @@ import (
 
 const DNS_SERVICE = "ipfs.dns"
 
+type DNSSECRecord struct {
+	KeyTag     uint16 `json:"keyTag"`
+	Algorithm  uint8  `json:"algorithm"`
+	DigestType uint8  `json:"digestType"`
+	Digest     string `json:"digest"`
+}
+
 // DNSService defines the interface for managing DNS zones
 type DNSService interface {
 	core.Service
@@ -40,6 +47,12 @@ type DNSService interface {
 	// CreateWebsiteDNSRecords creates initial DNS records for a new website.
 	// websiteDomain is the full domain of the website (may differ from the zone's domain for subdomain websites).
 	CreateWebsiteDNSRecords(ctx context.Context, zoneID uint, websiteDomain string, targetHash string, targetType pluginDb.WebsiteTargetType, validationToken string) error
+
+	// EnsureZoneDNSSEC enables DNSSEC for a zone and returns DS material for parent publication.
+	EnsureZoneDNSSEC(ctx context.Context, zoneID uint) (*DNSSECRecord, error)
+
+	// CreateHNSDNSRecords creates DNSLink and DANE records for an HNS/DANE website binding.
+	CreateHNSDNSRecords(ctx context.Context, zoneID uint, hnsDomain string, targetHash string, targetType pluginDb.WebsiteTargetType, tlsaRecord string) ([]*apiDTO.DNSRecord, error)
 
 	// UpdateWebsiteDNSRecords updates DNS records for a website.
 	// websiteDomain is the full domain of the website (may differ from the zone's domain for subdomain websites).

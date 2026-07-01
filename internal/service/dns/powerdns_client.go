@@ -1,15 +1,19 @@
 package dns
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 
-	"go.lumeweb.com/portal/core"
+	pluginCore "go.lumeweb.com/portal-plugin-ipfs/core"
 	"go.lumeweb.com/portal-plugin-ipfs/internal/dns/powerdns"
+	"go.lumeweb.com/portal/core"
 	"go.uber.org/zap"
 )
 
@@ -18,8 +22,19 @@ const defaultServerID = "localhost"
 
 // PowerDNSClient wraps the generated PowerDNS client
 type PowerDNSClient struct {
-	client *powerdns.Client
-	logger *core.Logger
+	client     *powerdns.Client
+	httpClient *http.Client
+	baseURL    string
+	apiKey     string
+	logger     *core.Logger
+}
+
+type cryptokey struct {
+	ID        int      `json:"id,omitempty"`
+	KeyType   string   `json:"keytype,omitempty"`
+	Active    bool     `json:"active,omitempty"`
+	Published bool     `json:"published,omitempty"`
+	DS        []string `json:"ds,omitempty"`
 }
 
 // NewPowerDNSClient creates a new PowerDNS client wrapper
@@ -33,8 +48,11 @@ func NewPowerDNSClient(baseURL, apiKey string, logger *core.Logger) (*PowerDNSCl
 	}
 
 	return &PowerDNSClient{
-		client: pdnsClient,
-		logger: logger,
+		client:     pdnsClient,
+		httpClient: http.DefaultClient,
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		apiKey:     apiKey,
+		logger:     logger,
 	}, nil
 }
 
@@ -161,4 +179,166 @@ func (c *PowerDNSClient) DeleteZone(ctx context.Context, zoneID string) error {
 		zap.String("zone_id", zoneID))
 
 	return nil
+}
+
+func (c *PowerDNSClient) EnsureDNSSECAndGetDS(ctx context.Context, zoneID string) (*pluginCore.DNSSECRecord, error) {
+	if err := c.EnableDNSSEC(ctx, zoneID); err != nil {
+		return nil, err
+	}
+
+	keys, err := c.GetCryptokeys(ctx, zoneID)
+	if err != nil {
+		return nil, err
+	}
+
+	if ds := firstDSRecord(keys); ds != "" {
+		return parseDSRecord(ds)
+	}
+
+	key, err := c.CreateCryptokey(ctx, zoneID)
+	if err != nil {
+		return nil, err
+	}
+	if ds := firstDSRecord([]cryptokey{*key}); ds != "" {
+		return parseDSRecord(ds)
+	}
+
+	keys, err = c.GetCryptokeys(ctx, zoneID)
+	if err != nil {
+		return nil, err
+	}
+	if ds := firstDSRecord(keys); ds != "" {
+		return parseDSRecord(ds)
+	}
+
+	return nil, fmt.Errorf("PowerDNS returned no DS records for zone %q", zoneID)
+}
+
+func (c *PowerDNSClient) EnableDNSSEC(ctx context.Context, zoneID string) error {
+	resp, err := c.doJSON(ctx, http.MethodPut, fmt.Sprintf("/servers/%s/zones/%s", defaultServerID, url.PathEscape(zoneID)), map[string]any{
+		"dnssec":      true,
+		"api_rectify": true,
+	})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("PowerDNS DNSSEC enable returned status %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	return nil
+}
+
+func (c *PowerDNSClient) GetCryptokeys(ctx context.Context, zoneID string) ([]cryptokey, error) {
+	resp, err := c.doJSON(ctx, http.MethodGet, fmt.Sprintf("/servers/%s/zones/%s/cryptokeys", defaultServerID, url.PathEscape(zoneID)), nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("PowerDNS cryptokeys returned status %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	var keys []cryptokey
+	if err := json.NewDecoder(resp.Body).Decode(&keys); err != nil {
+		return nil, fmt.Errorf("failed to decode PowerDNS cryptokeys: %w", err)
+	}
+	return keys, nil
+}
+
+func (c *PowerDNSClient) CreateCryptokey(ctx context.Context, zoneID string) (*cryptokey, error) {
+	resp, err := c.doJSON(ctx, http.MethodPost, fmt.Sprintf("/servers/%s/zones/%s/cryptokeys", defaultServerID, url.PathEscape(zoneID)), map[string]any{
+		"keytype":   "ksk",
+		"active":    true,
+		"published": true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("PowerDNS cryptokey create returned status %d, body: %s", resp.StatusCode, string(bodyBytes))
+	}
+	var key cryptokey
+	if err := json.NewDecoder(resp.Body).Decode(&key); err != nil {
+		return nil, fmt.Errorf("failed to decode PowerDNS cryptokey: %w", err)
+	}
+	return &key, nil
+}
+
+func (c *PowerDNSClient) doJSON(ctx context.Context, method string, path string, body any) (*http.Response, error) {
+	var reader io.Reader
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		reader = bytes.NewReader(data)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-API-Key", c.apiKey)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return c.httpClient.Do(req)
+}
+
+func firstDSRecord(keys []cryptokey) string {
+	for _, key := range keys {
+		if !key.Active || !key.Published {
+			continue
+		}
+		if len(key.DS) > 0 {
+			return key.DS[0]
+		}
+	}
+	for _, key := range keys {
+		if len(key.DS) > 0 {
+			return key.DS[0]
+		}
+	}
+	return ""
+}
+
+func parseDSRecord(record string) (*pluginCore.DNSSECRecord, error) {
+	fields := strings.Fields(record)
+	dsIndex := -1
+	for i, field := range fields {
+		if strings.EqualFold(field, "DS") {
+			dsIndex = i
+			break
+		}
+	}
+	if dsIndex >= 0 {
+		fields = fields[dsIndex+1:]
+	}
+	if len(fields) < 4 {
+		return nil, fmt.Errorf("invalid DS record %q", record)
+	}
+	fields = fields[len(fields)-4:]
+
+	keyTag, err := strconv.ParseUint(fields[0], 10, 16)
+	if err != nil {
+		return nil, fmt.Errorf("invalid DS key tag %q: %w", fields[0], err)
+	}
+	algorithm, err := strconv.ParseUint(fields[1], 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("invalid DS algorithm %q: %w", fields[1], err)
+	}
+	digestType, err := strconv.ParseUint(fields[2], 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("invalid DS digest type %q: %w", fields[2], err)
+	}
+
+	return &pluginCore.DNSSECRecord{
+		KeyTag:     uint16(keyTag),
+		Algorithm:  uint8(algorithm),
+		DigestType: uint8(digestType),
+		Digest:     strings.ToUpper(fields[3]),
+	}, nil
 }

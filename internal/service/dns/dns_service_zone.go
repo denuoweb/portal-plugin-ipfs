@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	pluginCore "go.lumeweb.com/portal-plugin-ipfs/core"
+	apiDTO "go.lumeweb.com/portal-plugin-ipfs/internal/api/dto"
 	pluginDb "go.lumeweb.com/portal-plugin-ipfs/internal/db"
 	"go.lumeweb.com/portal-plugin-ipfs/internal/dns/powerdns"
 	"go.lumeweb.com/portal/core"
@@ -337,6 +339,117 @@ func (s *DNSServiceDefault) ValidateNameservers(ctx context.Context, zoneID uint
 // prefixed with "dnslink=" (e.g., "dnslink=/ipns/<peerID>").
 func buildTargetPath(targetHash string, targetType pluginDb.WebsiteTargetType) DNSLinkTarget {
 	return DNSLinkTarget("dnslink=" + targetType.ToDNSLinkPath(targetHash))
+}
+
+func (s *DNSServiceDefault) EnsureZoneDNSSEC(ctx context.Context, zoneID uint) (*pluginCore.DNSSECRecord, error) {
+	ctx, span := core.TraceMethod(ctx, "DNSService.EnsureZoneDNSSEC")
+	defer span.End()
+
+	zone, err := s.GetZone(ctx, zoneID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get zone: %w", err)
+	}
+	if zone == nil {
+		return nil, fmt.Errorf("zone not found")
+	}
+	if s.pdnsClient == nil {
+		return nil, fmt.Errorf("DNS hosting not enabled")
+	}
+	if zone.PowerDNSZoneID == "" {
+		return nil, fmt.Errorf("zone not properly initialized in PowerDNS")
+	}
+
+	ds, err := s.pdnsClient.EnsureDNSSECAndGetDS(ctx, zone.PowerDNSZoneID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ensure DNSSEC: %w", err)
+	}
+	return ds, nil
+}
+
+func (s *DNSServiceDefault) CreateHNSDNSRecords(ctx context.Context, zoneID uint, hnsDomain string, targetHash string, targetType pluginDb.WebsiteTargetType, tlsaRecord string) ([]*apiDTO.DNSRecord, error) {
+	ctx, span := core.TraceMethod(ctx, "DNSService.CreateHNSDNSRecords")
+	defer span.End()
+
+	zone, err := s.GetZone(ctx, zoneID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get zone: %w", err)
+	}
+	if zone == nil {
+		return nil, fmt.Errorf("zone not found")
+	}
+	if s.pdnsClient == nil {
+		return nil, fmt.Errorf("DNS hosting not enabled")
+	}
+
+	zoneName := strings.TrimSuffix(strings.TrimSuffix(hnsDomain, "/"), ".") + "."
+	ttl := 300
+	disabled := false
+	targetPath := string(buildTargetPath(targetHash, targetType))
+
+	apexName := buildFullName(zoneName, zoneName)
+	dnslinkName := buildFullName("_dnslink", zoneName)
+	tlsaName := buildFullName("_443._tcp", zoneName)
+
+	rrsets := []powerdns.RRSet{
+		{
+			Name:       dnslinkName,
+			Type:       "TXT",
+			Changetype: "REPLACE",
+			Ttl:        &ttl,
+			Records: []powerdns.Record{
+				{
+					Content:  formatTXTContent(targetPath),
+					Disabled: &disabled,
+				},
+			},
+		},
+		{
+			Name:       tlsaName,
+			Type:       "TLSA",
+			Changetype: "REPLACE",
+			Ttl:        &ttl,
+			Records: []powerdns.Record{
+				{
+					Content:  tlsaRecord,
+					Disabled: &disabled,
+				},
+			},
+		},
+	}
+
+	managed := []*apiDTO.DNSRecord{
+		{ZoneID: zoneID, Name: dnslinkName, Type: "TXT", Content: targetPath, TTL: uint(ttl), Disabled: false},
+		{ZoneID: zoneID, Name: tlsaName, Type: "TLSA", Content: tlsaRecord, TTL: uint(ttl), Disabled: false},
+	}
+
+	if s.config.GatewayDomain != "" {
+		gatewayTarget := strings.TrimSuffix(s.config.GatewayDomain, ".") + "."
+		rrsets = append(rrsets, powerdns.RRSet{
+			Name:       apexName,
+			Type:       "ALIAS",
+			Changetype: "REPLACE",
+			Ttl:        &ttl,
+			Records: []powerdns.Record{
+				{
+					Content:  gatewayTarget,
+					Disabled: &disabled,
+				},
+			},
+		})
+		managed = append(managed, &apiDTO.DNSRecord{ZoneID: zoneID, Name: apexName, Type: "ALIAS", Content: gatewayTarget, TTL: uint(ttl), Disabled: false})
+	}
+
+	if err := s.pdnsClient.UpdateZoneRRSets(ctx, zone.PowerDNSZoneID, rrsets); err != nil {
+		return nil, fmt.Errorf("failed to create HNS DNS records: %w", err)
+	}
+
+	s.Logger().Info("HNS DNS records created for website",
+		zap.Uint("zone_id", zoneID),
+		zap.String("domain", zoneName),
+		zap.String("target_hash", targetHash),
+		zap.String("target_type", string(targetType)))
+
+	return managed, nil
 }
 
 // CreateWebsiteDNSRecords creates initial DNS records for a new website.

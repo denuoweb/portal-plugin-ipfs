@@ -23,6 +23,15 @@ type DnsConfig struct {
 	// Gateway domain for ALIAS records (auto-wiring)
 	GatewayDomain string `config:"gateway_domain"`
 
+	// Optional fixed TLSA record for HNS/DANE mode (for example: "3 1 1 <spki-sha256>").
+	DANETLSARecord string `config:"dane_tlsa_record"`
+
+	// Optional PEM certificate used to derive the HNS/DANE TLSA SPKI hash.
+	DANECertificatePEM string `config:"dane_certificate_pem"`
+
+	// Optional host:port used to fetch the gateway certificate for TLSA generation.
+	DANETLSAEndpoint string `config:"dane_tlsa_endpoint"`
+
 	// Verification token key used as the subdomain label for validation TXT records
 	VerificationTokenKey string `config:"verification_token_key"`
 
@@ -32,12 +41,15 @@ type DnsConfig struct {
 
 func (c DnsConfig) Defaults() map[string]any {
 	return map[string]any{
-		"Enabled":                       false,
-		"PowerDNSAPIURL":                "",
-		"PowerDNSAPIKey":                "",
-		"Nameservers":                   []string{},
-		"GatewayDomain":                 "",
-		"VerificationTokenKey":           "lumeweb-verify",
-		"NameserverValidationInterval":  5 * time.Minute,
+		"Enabled":                      false,
+		"PowerDNSAPIURL":               "",
+		"PowerDNSAPIKey":               "",
+		"Nameservers":                  []string{},
+		"GatewayDomain":                "",
+		"DANETLSARecord":               "",
+		"DANECertificatePEM":           "",
+		"DANETLSAEndpoint":             "",
+		"VerificationTokenKey":         "lumeweb-verify",
+		"NameserverValidationInterval": 5 * time.Minute,
 	}
 }
