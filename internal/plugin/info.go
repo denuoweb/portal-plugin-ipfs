@@ -97,6 +97,7 @@ func getPluginInfoWithoutTemplates() core.PluginInfo {
 			&db.IPFSIPNSKey{},
 			&db.Website{},
 			&db.DNSZone{},
+			&db.HNSDomain{},
 		},
 		Metrics:         GetCollectors(),
 		Migrations:      core.DBMigration{core.DB_TYPE_SQLITE: migrations.GetSQLite(), core.DB_TYPE_MYSQL: migrations.GetMySQL()},
