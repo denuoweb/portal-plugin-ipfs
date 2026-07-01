@@ -12,8 +12,8 @@ import (
 	"github.com/ipld/go-car/v2"
 	"github.com/labstack/echo/v4"
 	"github.com/tus/tusd/v2/pkg/handler"
-	portalMw "go.lumeweb.com/portal-middleware/middleware"
 	"go.lumeweb.com/portal-middleware/auth/jwt"
+	portalMw "go.lumeweb.com/portal-middleware/middleware"
 	pluginCore "go.lumeweb.com/portal-plugin-ipfs/core"
 	"go.lumeweb.com/portal-plugin-ipfs/internal"
 	"go.lumeweb.com/portal-plugin-ipfs/internal/api/dto"
@@ -681,7 +681,29 @@ See also:.*`),
 				router.WithSuccessResponse(http.StatusOK, "Validation result", router.WithJSONContent(dto.WebsiteValidateResponse{})),
 			),
 		),
+		router.NewRoute(http.MethodPost, "/websites/:id/hns-domains", a.createHNSDomain,
+			router.WithAccess(core.ACCESS_USER_ROLE),
+			router.WithSwagger(
+				router.WithSummary("Create HNS domain"),
+				router.WithDescription(`Creates an HNS/DANE domain binding for a website.
 
+Pinner prepares the DNSSEC-signed zone, DNSLink record, TLSA record, and gateway route, then returns the HNS wallet records the customer must publish. This does not verify HNS ownership and does not request or store HNS private keys.`),
+				router.WithTags("Websites"),
+				router.WithPathParam("id", "Website ID", ""),
+				router.WithRequestBody(&dto.HNSDomainRequest{}, "HNS domain request", true),
+				router.WithSuccessResponse(http.StatusCreated, "HNS domain bundle created", router.WithJSONContent(dto.HNSDomainResponse{})),
+			),
+		),
+		router.NewRoute(http.MethodGet, "/websites/:id/hns-domains", a.listHNSDomains,
+			router.WithAccess(core.ACCESS_USER_ROLE),
+			router.WithSwagger(
+				router.WithSummary("List HNS domains"),
+				router.WithDescription(`Lists HNS/DANE domain bindings for a website.`),
+				router.WithTags("Websites"),
+				router.WithPathParam("id", "Website ID", ""),
+				router.WithSuccessResponse(http.StatusOK, "HNS domain list", router.WithJSONContent(dto.HNSDomainItemResponse{})),
+			),
+		),
 	)
 
 	if err := router.RegisterRoutes(apiGroup, accessSvc, a.Subdomain(), websiteRoutes, router.WithMiddlewares(authMw), router.WithCors()); err != nil {
@@ -1101,7 +1123,7 @@ See also:.*`),
 	)
 
 	if err := router.RegisterRoutes(r, accessSvc, a.Subdomain(), internalSSLStatusRoutes,
-		router.WithMiddlewares(gatewayAuthMw),  // Use gateway auth, not user auth
+		router.WithMiddlewares(gatewayAuthMw), // Use gateway auth, not user auth
 		router.WithCors()); err != nil {
 		return fmt.Errorf("failed to register internal SSL status routes: %w", err)
 	}

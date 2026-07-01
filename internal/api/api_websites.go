@@ -13,10 +13,10 @@ import (
 	"go.lumeweb.com/httputil"
 	mcontext "go.lumeweb.com/portal-middleware/context"
 	pluginCore "go.lumeweb.com/portal-plugin-ipfs/core"
+	"go.lumeweb.com/portal-plugin-ipfs/internal/api/dto"
+	pluginDb "go.lumeweb.com/portal-plugin-ipfs/internal/db"
 	pluginEvents "go.lumeweb.com/portal-plugin-ipfs/internal/errors"
 	pluginservice "go.lumeweb.com/portal-plugin-ipfs/internal/service/website"
-	pluginDb "go.lumeweb.com/portal-plugin-ipfs/internal/db"
-	"go.lumeweb.com/portal-plugin-ipfs/internal/api/dto"
 	"go.lumeweb.com/queryutil"
 	"go.lumeweb.com/queryutil/filter"
 	"go.uber.org/zap"
@@ -81,30 +81,30 @@ func (a *API) handleWebsiteValidationError(err error, c echo.Context) (error, bo
 	if err == nil {
 		return nil, false
 	}
-	
+
 	ctx := httputil.Context(c)
-	
+
 	// Check for specific validation errors using errors.Is
 	if errors.Is(err, pluginservice.ErrInvalidCID) {
 		apiErr := NewError(ErrKeyInvalidCID, err)
 		return ctx.Error(apiErr, apiErr.HttpStatus()), true
 	}
-	
+
 	if errors.Is(err, pluginservice.ErrInvalidIPNS) {
 		apiErr := NewError(ErrKeyInvalidTarget, err)
 		return ctx.Error(apiErr, apiErr.HttpStatus()), true
 	}
-	
+
 	if errors.Is(err, pluginservice.ErrInvalidTarget) {
 		apiErr := NewError(ErrKeyInvalidTarget, err)
 		return ctx.Error(apiErr, apiErr.HttpStatus()), true
 	}
-	
+
 	if errors.Is(err, pluginservice.ErrInvalidDomain) {
 		apiErr := NewError(ErrKeyInvalidDomainFormat, err)
 		return ctx.Error(apiErr, apiErr.HttpStatus()), true
 	}
-	
+
 	return err, false
 }
 
@@ -389,6 +389,84 @@ func (a *API) validateWebsiteDNS(c echo.Context) error {
 	}
 
 	return ctx.JSON(http.StatusOK, resp)
+}
+
+func (a *API) createHNSDomain(c echo.Context) error {
+	ctx := httputil.Context(c)
+	reqCtx := ctx.Context.Request().Context()
+	user, err := mcontext.GetUserID(c)
+	if err != nil {
+		return err
+	}
+
+	websiteID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		apiErr := NewError(ErrKeyInvalidRequest, err)
+		return ctx.Error(apiErr, apiErr.HttpStatus())
+	}
+
+	var req dto.HNSDomainRequest
+	model, ok := httputil.DecodeAndValidateRequest(ctx, &req)
+	if !ok {
+		return nil
+	}
+
+	hnsDomain, err := a.websiteService.CreateHNSDomain(reqCtx, user, uint(websiteID), model.Domain, model.Mode)
+	if err != nil {
+		a.Logger().Error("Failed to create HNS domain", zap.Error(err), zap.Uint("website_id", uint(websiteID)), zap.Uint("user_id", user))
+		apiErr := NewError(ErrKeyFileProcessingFailed, err)
+		return ctx.Error(apiErr, apiErr.HttpStatus())
+	}
+
+	var resp dto.HNSDomainResponse
+	if err := resp.FromModel(hnsDomain); err != nil {
+		a.Logger().Error("Failed to convert HNS domain to response", zap.Error(err))
+		apiErr := NewError(ErrKeyFileProcessingFailed, err)
+		return ctx.Error(apiErr, apiErr.HttpStatus())
+	}
+
+	ctx.Response().Before(func() {
+		ctx.Response().Status = http.StatusCreated
+	})
+	return httputil.EncodeResponse(ctx, hnsDomain, &resp)
+}
+
+func (a *API) listHNSDomains(c echo.Context) error {
+	ctx := httputil.Context(c)
+	reqCtx := ctx.Context.Request().Context()
+	user, err := mcontext.GetUserID(c)
+	if err != nil {
+		return err
+	}
+
+	websiteID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		apiErr := NewError(ErrKeyInvalidRequest, err)
+		return ctx.Error(apiErr, apiErr.HttpStatus())
+	}
+
+	domains, err := a.websiteService.ListHNSDomains(reqCtx, user, uint(websiteID))
+	if err != nil {
+		a.Logger().Error("Failed to list HNS domains", zap.Error(err), zap.Uint("website_id", uint(websiteID)), zap.Uint("user_id", user))
+		apiErr := NewError(ErrKeyFileProcessingFailed, err)
+		return ctx.Error(apiErr, apiErr.HttpStatus())
+	}
+
+	items := make([]dto.HNSDomainItem, len(domains))
+	for i, domain := range domains {
+		var resp dto.HNSDomainResponse
+		if err := resp.FromModel(domain); err != nil {
+			a.Logger().Error("Failed to convert HNS domain to response", zap.Error(err))
+			apiErr := NewError(ErrKeyFileProcessingFailed, err)
+			return ctx.Error(apiErr, apiErr.HttpStatus())
+		}
+		items[i] = dto.HNSDomainItem(resp)
+	}
+
+	return ctx.JSON(http.StatusOK, dto.HNSDomainItemResponse{
+		Data:  items,
+		Total: int64(len(items)),
+	})
 }
 
 func (a *API) getSSLStatus(c echo.Context) error {
