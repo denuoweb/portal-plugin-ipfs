@@ -39,11 +39,11 @@ func (s *WebsiteServiceDefault) verificationTokenKey() string {
 }
 
 const (
-	msgTokenExpired  = "Validation token expired for %s — a new token has been generated. Please add the updated TXT record at %s.%s to your DNS configuration"
-	msgDNSMissing    = "No DNS records found for %s. Please add the required TXT records to your DNS configuration"
-	msgDNSMismatch   = "DNS validation failed: missing or incorrect dnslink record (expected: %s, found: %s)"
-	msgTokenMissing  = "DNS validation failed: missing validation token at %s.%s for %s"
-	msgValidated     = "DNS validation successful for %s"
+	msgTokenExpired = "Validation token expired for %s — a new token has been generated. Please add the updated TXT record at %s.%s to your DNS configuration"
+	msgDNSMissing   = "No DNS records found for %s. Please add the required TXT records to your DNS configuration"
+	msgDNSMismatch  = "DNS validation failed: missing or incorrect dnslink record (expected: %s, found: %s)"
+	msgTokenMissing = "DNS validation failed: missing validation token at %s.%s for %s"
+	msgValidated    = "DNS validation successful for %s"
 )
 
 func extractParentDomain(domain string) string {
@@ -56,25 +56,25 @@ func extractParentDomain(domain string) string {
 
 // Validation error types
 var (
-	ErrInvalidCID    = errors.New("invalid CID")
-	ErrInvalidIPNS   = errors.New("invalid IPNS name")
-	ErrInvalidTarget = errors.New("invalid target")
-	ErrInvalidDomain = errors.New("invalid domain")
-	ErrCIDNotPinned  = errors.New("CID is not pinned")
+	ErrInvalidCID      = errors.New("invalid CID")
+	ErrInvalidIPNS     = errors.New("invalid IPNS name")
+	ErrInvalidTarget   = errors.New("invalid target")
+	ErrInvalidDomain   = errors.New("invalid domain")
+	ErrCIDNotPinned    = errors.New("CID is not pinned")
 	ErrIPNSKeyNotFound = errors.New("IPNS key not found")
 )
 
 // WebsiteServiceDefault implements the WebsiteService interface
 type WebsiteServiceDefault struct {
 	*core.BaseComponent
-	pinSvc       pluginCore.IPFSPinService
-	ipnsKeySvc   pluginCore.IPNSKeyService
-	mailerSvc    core.MailerService
-	dnsSvc       pluginCore.DNSService
-	config       *pluginConfig.WebsiteConfig
-	dnsConfig    *pluginConfig.DnsConfig
-	resolver     DNSResolver
-	publishWg    sync.WaitGroup
+	pinSvc     pluginCore.IPFSPinService
+	ipnsKeySvc pluginCore.IPNSKeyService
+	mailerSvc  core.MailerService
+	dnsSvc     pluginCore.DNSService
+	config     *pluginConfig.WebsiteConfig
+	dnsConfig  *pluginConfig.DnsConfig
+	resolver   DNSResolver
+	publishWg  sync.WaitGroup
 }
 
 // Ensure WebsiteServiceDefault implements the interface
@@ -84,7 +84,7 @@ var _ pluginCore.WebsiteService = (*WebsiteServiceDefault)(nil)
 func NewWebsiteService() (core.Service, []core.ContextBuilderOption, error) {
 	svc := &WebsiteServiceDefault{}
 
-		opts := core.ContextOptions(
+	opts := core.ContextOptions(
 		core.ContextWithStartupFunc(func(ctx core.Context) error {
 			svc.pinSvc = core.GetService[pluginCore.IPFSPinService](ctx, pluginCore.PIN_SERVICE)
 			svc.ipnsKeySvc = core.GetService[pluginCore.IPNSKeyService](ctx, pluginCore.IPNS_KEY_SERVICE)
@@ -365,7 +365,7 @@ func (s *WebsiteServiceDefault) GetWebsiteByDomain(ctx context.Context, domain s
 
 			if err != nil {
 				if err == gorm.ErrRecordNotFound {
-					return nil, nil
+					return s.getWebsiteByHNSDomain(ctx, domain)
 				}
 				return nil, fmt.Errorf("failed to get website by domain: %w", err)
 			}
@@ -448,6 +448,7 @@ func (s *WebsiteServiceDefault) UpdateWebsite(ctx context.Context, userID uint, 
 	var updatedWebsite *pluginDb.Website
 	var oldEnabled bool
 	var dnsEnabledChanged bool
+	var hnsRefreshNeeded bool
 
 	err := core.MetricTrack(
 		UpdateWebsiteDuration.WithLabelValues(),
@@ -636,8 +637,13 @@ func (s *WebsiteServiceDefault) UpdateWebsite(ctx context.Context, userID uint, 
 					_ = tx.AddError(fmt.Errorf("failed to update website: %w", err))
 					return tx
 				}
+				if err := tx.Where("user_id = ? AND id = ?", userID, websiteID).First(&website).Error; err != nil {
+					_ = tx.AddError(fmt.Errorf("failed to reload updated website: %w", err))
+					return tx
+				}
 
 				updatedWebsite = &website
+				hnsRefreshNeeded = targetHashChanged
 
 				// If target hash changed and website has auto-created IPNS key, republish to IPNS
 				// Skip if ensureIPNSKey already handled the publish
@@ -657,19 +663,19 @@ func (s *WebsiteServiceDefault) UpdateWebsite(ctx context.Context, userID uint, 
 					}
 				}
 
-			// Update DNS records if target changed and DNS hosting is enabled
-			// Note: Skip DNS only when staying as IPNS (peer ID doesn't change)
-			if targetHashChanged && website.Enabled && website.DNSZoneID != nil && s.dnsSvc != nil {
-				newTargetType := pluginDb.WebsiteTargetType(website.TargetType)
-				if oldTargetType != pluginDb.WebsiteTargetTypeIPNS || newTargetType != pluginDb.WebsiteTargetTypeIPNS {
-					newTargetHash := website.TargetHash()
-					if err := s.dnsSvc.UpdateWebsiteDNSRecords(ctx, *website.DNSZoneID, website.Domain, newTargetHash, newTargetType); err != nil {
-						s.Logger().Warn("Failed to update DNS records for website",
-							zap.Error(err),
-							zap.Uint("website_id", websiteID),
-							zap.Uint("dns_zone_id", *website.DNSZoneID))
+				// Update DNS records if target changed and DNS hosting is enabled
+				// Note: Skip DNS only when staying as IPNS (peer ID doesn't change)
+				if targetHashChanged && website.Enabled && website.DNSZoneID != nil && s.dnsSvc != nil {
+					newTargetType := pluginDb.WebsiteTargetType(website.TargetType)
+					if oldTargetType != pluginDb.WebsiteTargetTypeIPNS || newTargetType != pluginDb.WebsiteTargetTypeIPNS {
+						newTargetHash := website.TargetHash()
+						if err := s.dnsSvc.UpdateWebsiteDNSRecords(ctx, *website.DNSZoneID, website.Domain, newTargetHash, newTargetType); err != nil {
+							s.Logger().Warn("Failed to update DNS records for website",
+								zap.Error(err),
+								zap.Uint("website_id", websiteID),
+								zap.Uint("dns_zone_id", *website.DNSZoneID))
+						}
 					}
-				}
 				}
 
 				return tx
@@ -680,6 +686,10 @@ func (s *WebsiteServiceDefault) UpdateWebsite(ctx context.Context, userID uint, 
 
 	if err != nil {
 		return nil, err
+	}
+
+	if hnsRefreshNeeded {
+		s.refreshHNSDomains(ctx, updatedWebsite)
 	}
 
 	// Handle DNS hosting transitions if dns_enabled changed
@@ -944,6 +954,10 @@ func (s *WebsiteServiceDefault) DeleteWebsite(ctx context.Context, userID uint, 
 				result := tx.Delete(&website)
 				if result.Error != nil {
 					_ = tx.AddError(fmt.Errorf("failed to delete website: %w", result.Error))
+					return tx
+				}
+				if err := tx.Where("website_id = ?", websiteID).Delete(&pluginDb.HNSDomain{}).Error; err != nil {
+					_ = tx.AddError(fmt.Errorf("failed to delete HNS domains: %w", err))
 					return tx
 				}
 				count = result.RowsAffected

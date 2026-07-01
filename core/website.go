@@ -51,6 +51,12 @@ type WebsiteService interface {
 	// DeleteWebsite soft-deletes a website by ID
 	DeleteWebsite(ctx context.Context, userID uint, websiteID uint) error
 
+	// CreateHNSDomain creates an HNS/DANE domain binding and deployment bundle for a website.
+	CreateHNSDomain(ctx context.Context, userID uint, websiteID uint, domain string, mode string) (*pluginDb.HNSDomain, error)
+
+	// ListHNSDomains retrieves HNS/DANE domain bindings for a website.
+	ListHNSDomains(ctx context.Context, userID uint, websiteID uint) ([]*pluginDb.HNSDomain, error)
+
 	// BlockWebsite blocks a website (admin operation)
 	BlockWebsite(ctx context.Context, websiteID uint) error
 
